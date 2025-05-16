@@ -1,48 +1,58 @@
-const apiKey = '8241d18749c94b7a8f676232c3f59195'; 
+const rapidApiKey = window.config.RAPID_API_KEY;
+
+if (!rapidApiKey) {
+    console.error('RAPID_API_KEY is not configured');
+    document.getElementById('weatherResult').innerHTML = 'Error: API key not configured';
+}
 
 async function getWeather() {
   const location = document.getElementById('locationInput').value.trim();
   const resultDiv = document.getElementById('weatherResult');
   resultDiv.innerHTML = 'Loading...';
-
+  
   if (!location) {
     resultDiv.innerHTML = 'Please enter a location.';
     return;
   }
 
   try {
-    const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json`);
-    const geoData = await geoRes.json();
-    console.log('GeoData:', geoData);
-
-    if (!geoData || geoData.length === 0) {
-      resultDiv.innerHTML = 'Location not found.';
+    // RapidAPI OpenWeather endpoint
+    const url = `https://weatherapi-com.p.rapidapi.com/current.json?q=${encodeURIComponent(location)}`;
+    
+    const options = {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': rapidApiKey,
+        'X-RapidAPI-Host': 'weatherapi-com.p.rapidapi.com'
+      }
+    };
+    
+    console.log('Request URL:', url);
+    
+    const response = await fetch(url, options);
+    const data = await response.json();
+    console.log('API Response:', data);
+    
+    // Error handling for RapidAPI response
+    if (data.error) {
+      resultDiv.innerHTML = `Error: ${data.error.message || 'Location not found.'}`;
       return;
     }
-
-    const lat = geoData[0].lat;
-    const lon = geoData[0].lon;
-
     
-    const url = `https://api.tomorrow.io/v4/weather/realtime?location=${lat},${lon}&apikey=${apiKey}`;
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (!data.data || !data.data.values) {
-      throw new Error('No weather data found.');
-    }
-
-    const weather = data.data.values;
-
+    
+    const locationData = data.location;
+    const current = data.current;
+    
     resultDiv.innerHTML = `
-      <h2>Weather in ${location}</h2>
-      <p><strong>Temperature:</strong> ${weather.temperature}°C</p>
-      <p><strong>Humidity:</strong> ${weather.humidity}%</p>
-      <p><strong>Wind Speed:</strong> ${weather.windSpeed} m/s</p>
-      <p><strong>Cloud Cover:</strong> ${weather.cloudCover}%</p>
+      <h2>Weather in ${locationData.name}, ${locationData.country}</h2>
+      <p class="description">${current.condition.text}</p>
+      <p><strong>Temperature:</strong> ${current.temp_c}°C</p>
+      <p><strong>Feels like:</strong> ${current.feelslike_c}°C</p>
+      <p><strong>Humidity:</strong> ${current.humidity}%</p>
+      <p><strong>Wind Speed:</strong> ${current.wind_kph} km/h</p>
     `;
   } catch (error) {
     console.error(error);
-    resultDiv.innerHTML = 'Error fetching weather. Try again.';
+    resultDiv.innerHTML = 'Error fetching weather. Please try again.';
   }
 }
